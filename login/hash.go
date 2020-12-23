@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"math/big"
+	mrand "math/rand"
 	"strings"
+	"time"
 )
 
 const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_.~"
@@ -50,4 +52,19 @@ func base64URL(hash []byte) string {
 	encoding = strings.Replace(encoding, "/", "_", -1) // 63rd char of encoding
 	encoding = strings.Replace(encoding, "=", "", -1)  // Remove any trailing '='s
 	return encoding
+}
+
+// generateState generates a state to protect against CSRF
+func generateState(state *string) error {
+	mrand.Seed(time.Now().UnixNano())
+	length := mrand.Intn(21)
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return err
+	}
+	for i, b := range bytes {
+		bytes[i] = chars[b%byte(len(chars))]
+	}
+	*state = base64URL(bytes)
+	return nil
 }

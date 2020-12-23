@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	state  = "abcde123" // Read about how state works
+	state  string
 	server = &http.Server{Addr: address, Handler: nil}
 	auth   spotify.Authenticator
 )
@@ -30,6 +30,10 @@ func init() {
 // Handle signin
 func handleSignin(w http.ResponseWriter, r *http.Request) {
 	codeChallenge, _ := codeChallenger()
+	err := generateState(&state)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 	url := auth.AuthURLWithOpts(state,
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 		oauth2.SetAuthURLParam("code_challenge", codeChallenge),

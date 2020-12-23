@@ -1,15 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/quentinv72/spotimand/login"
 )
 
 func main() {
-	request := login.LoginURL()
-	fmt.Println(request.URL)
+	login.Login()
 	// if err != nil {
 	// 	log.Fatalln(err)
 	// }
@@ -22,11 +18,4 @@ func main() {
 	// http.HandleFunc("/signin", handleSignIn)
 	// http.HandleFunc("/success", handleLogged)
 	// log.Fatal(http.ListenAndServe("localhost:9000", nil))
-}
-
-func handleLogged(w http.ResponseWriter, r *http.Request) {
-	// query := r.URL.Query()
-	// if value, ok := query["code"]; ok {
-	// http.Post("https://accounts.spotify.com/api/token")
-
 }

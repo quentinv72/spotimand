@@ -4,8 +4,13 @@ import (
 	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -14,7 +19,7 @@ const clientID = "d651facb9c8c47188af996f8e0816764"
 const address = "localhost:9000"
 const redirectURI = "http://" + address + "/redirect"
 
-var codeVerifier string = ""
+var codeVerifier string
 var client = &http.Client{}
 var server = &http.Server{Addr: address, Handler: nil}
 
@@ -25,7 +30,12 @@ func CodeChallenger() (string, error) {
 		return "", err
 	}
 	hash := sha256.Sum256(codeVerifierBytes)
-	return base64.URLEncoding.EncodeToString(hash[:]), nil
+	fmt.Println(codeVerifier, base64.URLEncoding.EncodeToString(hash[:]))
+	encoding := base64.StdEncoding.EncodeToString(hash[:])
+	encoding = strings.Replace(encoding, "+", "-", -1) // 62nd char of encoding
+	encoding = strings.Replace(encoding, "/", "_", -1) // 63rd char of encoding
+	encoding = strings.Replace(encoding, "=", "", -1)  // Remove any trailing '='s
+	return encoding, nil
 }
 
 // codeVerifierGenerator generates a code verifier of length between 43 and 127.
@@ -45,33 +55,67 @@ func codeVerifierGenerator(s *string) ([]byte, error) {
 	return bytes, nil
 }
 
-// loginURL Return the login query
-// Might be easier to use string formatting instead of URL to object
-func loginRequest() *http.Request {
-	req, _ := http.NewRequest("GET", "https://accounts.spotify.com/authorize", nil) // Need to handle the error
-	query := req.URL.Query()
-	codeChallenge, _ := CodeChallenger() // Need to handle error
-	query.Set("client_id", clientID)
-	query.Set("response_type", "code")
-	query.Set("redirect_uri", redirectURI)
-	query.Set("code_challenge_method", "S256")
-	query.Set("code_challenge", codeChallenge)
-	req.URL.RawQuery = query.Encode()
-	// Need to add state and scope
-	return req
-}
-
-// Create handler for /signin, /redirect, /success, /failure
+// Create handler for /signin, /redirect, /success
 
 func handleSignin(w http.ResponseWriter, r *http.Request) {
-	url := loginRequest().URL
-	http.Redirect(w, r, url.String(), http.StatusFound)
+	// Need to ad state
+
+	codeChallenge, _ := CodeChallenger()
+	url := fmt.Sprintf("https://accounts.spotify.com/authorize?client_id=%s&response_type=code&redirect_uri=%v&code_challenge_method=S256&code_challenge=%v", clientID, redirectURI, codeChallenge)
+
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func handleRedirect(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	if _, ok := query["code"]; ok {
-		http.Redirect(w, r, "/success", http.StatusFound)
+		successURL := fmt.Sprintf("/success?code=%v", query["code"][0])
+		http.Redirect(w, r, successURL, http.StatusFound)
+
+	} else {
+		w.Write([]byte(query["error"][0]))
+		w.Write([]byte(fmt.Sprintf("\nPlease try logging in again at http://%v/signin", address)))
 	}
+
+}
+
+func handleSuccess(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query()["code"][0]
+	url := "https://accounts.spotify.com/api/token"
+	data := fmt.Sprintf(
+		"grant_type=authorization_code&client_id=%s"+
+			"&code_verifier=%s"+
+			"&code=%s"+
+			"&redirect_uri=%s",
+		clientID, codeVerifier, code, redirectURI)
+	w.Write([]byte(data))
+	payload := strings.NewReader(data)
+	// create the request and execute it
+	req, _ := http.NewRequest("POST", url, payload)
+	req.Header.Add("content-type", "application/x-www-form-urlencoded")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, "\n"+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer res.Body.Close()
+	body, _ := ioutil.ReadAll(res.Body)
+	var tokenBody map[string]interface{}
+	err = json.Unmarshal(body, &tokenBody)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(body)
+
+}
+
+// Login function
+func Login() {
+	fmt.Printf("Please login at http://%s/signin\n", address)
+	http.HandleFunc("/redirect", handleRedirect)
+	http.HandleFunc("/success", handleSuccess)
+	http.HandleFunc("/signin", handleSignin)
+	log.Fatal(server.ListenAndServe())
 
 }

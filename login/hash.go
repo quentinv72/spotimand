@@ -1,12 +1,11 @@
 package login
 
 import (
-	crand "crypto/rand"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"math/rand"
+	"math/big"
 	"strings"
-	"time"
 )
 
 const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_.~"
@@ -26,17 +25,21 @@ func codeChallenger() (string, error) {
 // codeVerifierGenerator generates a code verifier of length between 43 and 127.
 // The code verifier is made up of the characters in the chars constant.
 // The function updates the codeVerifier variable.
-func codeVerifierGenerator(s *string) ([]byte, error) {
-	rand.Seed(time.Now().UnixNano())
-	length := rand.Intn(85) + 43
+func codeVerifierGenerator(codeVerifier *string) ([]byte, error) {
+	maxLength := big.NewInt(85)
+	n, err := rand.Int(rand.Reader, maxLength)
+	if err != nil {
+		return []byte{}, err
+	}
+	length := n.Int64() + 43
 	bytes := make([]byte, length)
-	if _, err := crand.Read(bytes); err != nil {
+	if _, err := rand.Read(bytes); err != nil {
 		return []byte{}, err
 	}
 	for i, b := range bytes {
 		bytes[i] = chars[b%byte(len(chars))]
 	}
-	*s = string(bytes)
+	*codeVerifier = string(bytes)
 	return bytes, nil
 }
 

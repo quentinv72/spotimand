@@ -2,10 +2,15 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
+
+	"golang.org/x/oauth2"
 
 	"github.com/quentinv72/spotimand/login"
 	"github.com/zmb3/spotify"
@@ -20,10 +25,21 @@ func main() {
 		return
 	}
 	fmt.Println("You are successfully logged in :)")
-	go login.RefreshToken(&client)
+	// Goroutine to update the client with the refreshed token
+	go func(client *spotify.Client) {
+		for {
+			var newTokens oauth2.Token
+			time.Sleep(20 * time.Minute)
+			login.RefreshToken()
+			jsonData, _ := ioutil.ReadFile("tokens.json")
+			json.Unmarshal(jsonData, &newTokens)
+			*client = login.Auth.NewClient(&newTokens)
+		}
+	}(&client)
+	user, _ := client.CurrentUser()
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("> ")
+		fmt.Printf("%s@spotimand> ", user.ID)
 		// Read the keyboad input.
 		input, err := reader.ReadString('\n')
 		if err != nil {

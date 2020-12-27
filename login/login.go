@@ -3,6 +3,7 @@ package login
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -68,29 +69,48 @@ func handleRedirect(w http.ResponseWriter, r *http.Request) {
 
 // Login manages the login process
 func Login() (bool, spotify.Client) {
+	var tokens oauth2.Token
+	var client spotify.Client
+	// Check if user was logged in past
+	if _, err := os.Stat("tokens.json"); err == nil {
+		err := RefreshToken()
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			err = validateTokens(&tokens)
+			if err == nil {
+				return true, Auth.NewClient(&tokens)
+			}
+
+		}
+
+	}
+	// If not previously logged in then signin through Spotify portal
 	fmt.Printf("Please sign-in at http://%s/signin\n", address)
 	http.HandleFunc("/redirect", handleRedirect)
 	http.HandleFunc("/signin", handleSignin)
-	// return the authenticator to make accessible in main
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 	// Verify the tokens were written to JSON file.
-	var tokens oauth2.Token
-	var client spotify.Client
-	jsonData, err := ioutil.ReadFile("tokens.json")
-	if err != nil {
-		fmt.Println(err)
-		return false, client
-	}
-	if err := json.Unmarshal(jsonData, &tokens); err != nil {
-		fmt.Println(err)
-		return false, client
-	}
-	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
-		fmt.Println("Seems like we weren't able to fetch your tokens... :/")
+	if err := validateTokens(&tokens); err != nil {
 		return false, client
 	}
 	client = Auth.NewClient(&tokens)
 	return true, client
+}
+
+func validateTokens(tokens *oauth2.Token) error {
+	jsonData, err := ioutil.ReadFile("tokens.json")
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(jsonData, tokens); err != nil {
+		return err
+	}
+	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
+		return errors.New("No tokens")
+	}
+
+	return nil
 }

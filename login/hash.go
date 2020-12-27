@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+	"log"
 	"math/big"
 	mrand "math/rand"
 	"strings"
@@ -15,13 +17,14 @@ const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_.
 var codeVerifier string
 
 // codeChallenger returns a base64url code challenger using SHA256 hash.
-func codeChallenger() (string, error) {
+func codeChallenger() string {
 	codeVerifierBytes, err := codeVerifierGenerator(&codeVerifier) // Possible test by mocking the codeVerifierGenerator
 	if err != nil {
-		return "", err
+		fmt.Println("Error generating code verifier!")
+		log.Fatal(err)
 	}
 	hash := sha256.Sum256(codeVerifierBytes)
-	return base64URL(hash[:]), nil
+	return base64URL(hash[:])
 }
 
 // codeVerifierGenerator generates a code verifier of length between 43 and 127.
@@ -45,7 +48,7 @@ func codeVerifierGenerator(codeVerifier *string) ([]byte, error) {
 	return bytes, nil
 }
 
-// Return base64url encoding of code challenger
+// Return base64url encoding hash
 func base64URL(hash []byte) string {
 	encoding := base64.StdEncoding.EncodeToString(hash)
 	encoding = strings.Replace(encoding, "+", "-", -1) // 62nd char of encoding
@@ -55,16 +58,15 @@ func base64URL(hash []byte) string {
 }
 
 // generateState generates a state to protect against CSRF
-func generateState(state *string) error {
+func generateState(state *string) {
 	mrand.Seed(time.Now().UnixNano())
 	length := mrand.Intn(21)
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
-		return err
+		log.Fatal("Error generating the state hash string")
 	}
 	for i, b := range bytes {
 		bytes[i] = chars[b%byte(len(chars))]
 	}
 	*state = base64URL(bytes)
-	return nil
 }

@@ -29,11 +29,8 @@ func init() {
 
 // Handle signin
 func handleSignin(w http.ResponseWriter, r *http.Request) {
-	codeChallenge, _ := codeChallenger()
-	err := generateState(&state)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	codeChallenge := codeChallenger()
+	generateState(&state)
 	url := auth.AuthURLWithOpts(state,
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 		oauth2.SetAuthURLParam("code_challenge", codeChallenge),

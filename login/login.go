@@ -28,7 +28,7 @@ var (
 // Initialize the environment and assign value to auth variable
 func init() {
 	os.Setenv("SPOTIFY_ID", "d651facb9c8c47188af996f8e0816764")
-	Auth = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadPrivate)
+	Auth = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadPrivate, spotify.ScopeUserModifyPlaybackState, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserReadCurrentlyPlaying)
 }
 
 // Handle signin
@@ -55,6 +55,7 @@ func handleRedirect(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("State mismatch: %s != %s\n", st, state)
 	}
 	fmt.Fprintf(w, "Login Completed! \nYou can now go back to your command line!")
+	// Write tokens to JSON file
 	json, _ := json.Marshal(tok)
 	ioutil.WriteFile("tokens.json", json, 0600)
 	go func() {
@@ -66,7 +67,7 @@ func handleRedirect(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login manages the login process
-func Login() bool {
+func Login() (bool, spotify.Client) {
 	fmt.Printf("Please sign-in at http://%s/signin\n", address)
 	http.HandleFunc("/redirect", handleRedirect)
 	http.HandleFunc("/signin", handleSignin)
@@ -76,18 +77,20 @@ func Login() bool {
 	}
 	// Verify the tokens were written to JSON file.
 	var tokens oauth2.Token
+	var client spotify.Client
 	jsonData, err := ioutil.ReadFile("tokens.json")
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return false, client
 	}
 	if err := json.Unmarshal(jsonData, &tokens); err != nil {
 		fmt.Println(err)
-		return false
+		return false, client
 	}
 	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
-		fmt.Println("Seems like we weren't anle to fetch your tokens... :/")
-		return false
+		fmt.Println("Seems like we weren't able to fetch your tokens... :/")
+		return false, client
 	}
-	return true
+	client = Auth.NewClient(&tokens)
+	return true, client
 }

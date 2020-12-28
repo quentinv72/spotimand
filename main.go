@@ -63,7 +63,7 @@ func execInput(input string) {
 
 	switch args[0] {
 	case "play":
-		player.Play(&client)
+		player.Play(&client, args[1:])
 	case "pause":
 		player.Pause(&client)
 	case "next":
@@ -71,9 +71,13 @@ func execInput(input string) {
 	case "previous":
 		player.Previous(&client)
 	case "current":
-		player.CurrentlyPlaying(&client)
+		player.SongCurrentlyPlaying(&client)
+	case "device":
+		player.Devices(&client, args[1:])
 	case "exit":
 		os.Exit(0)
+	case "":
+		// Do nothing
 	default:
 		fmt.Fprintln(os.Stderr, "Not a command")
 	}

@@ -5,21 +5,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
-	"golang.org/x/oauth2"
-
 	"github.com/quentinv72/spotimand/login"
+	"github.com/quentinv72/spotimand/player"
 	"github.com/zmb3/spotify"
+	"golang.org/x/oauth2"
 )
 
 var client spotify.Client
 
 func main() {
-	logged, client := login.Login()
+	var logged bool
+	logged, client = login.Login()
 	if !logged {
 		fmt.Println("There was an issue logging you in")
 		return
@@ -36,7 +37,10 @@ func main() {
 			*client = login.Auth.NewClient(&newTokens)
 		}
 	}(&client)
-	user, _ := client.CurrentUser()
+	user, err := client.CurrentUser()
+	if err != nil {
+		log.Fatal(err)
+	}
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf("%s@spotimand> ", user.ID)
@@ -46,24 +50,31 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
-		// Handle the execution of the input.
-		if err = execInput(input); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
+		execInput(input) // Maybe handle error here??
 	}
 }
 
-func execInput(input string) error {
+func execInput(input string) {
 	// Remove the newline character.
-	input = strings.TrimSuffix(input, "\n")
+	input = strings.TrimSuffix(input, "\r\n")
 
-	// Prepare the command to execute.
-	cmd := exec.Command(input)
+	// Split the input separate the command and the arguments.
+	args := strings.Split(input, " ")
 
-	// Set the correct output device.
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-
-	// Execute the command and return the error.
-	return cmd.Run()
+	switch args[0] {
+	case "play":
+		player.Play(&client)
+	case "pause":
+		player.Pause(&client)
+	case "next":
+		player.Next(&client)
+	case "previous":
+		player.Previous(&client)
+	case "current":
+		player.CurrentlyPlaying(&client)
+	case "exit":
+		os.Exit(0)
+	default:
+		fmt.Fprintln(os.Stderr, "Not a command")
+	}
 }

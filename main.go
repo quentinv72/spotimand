@@ -33,7 +33,7 @@ func main() {
 			var newTokens oauth2.Token
 			time.Sleep(20 * time.Minute)
 			login.RefreshToken()
-			jsonData, _ := ioutil.ReadFile("tokens.json")
+			jsonData, _ := ioutil.ReadFile(login.TokenFile)
 			json.Unmarshal(jsonData, &newTokens)
 			*client = login.Auth.NewClient(&newTokens)
 		}

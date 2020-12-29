@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/zmb3/spotify"
 	"golang.org/x/oauth2"
@@ -22,14 +23,21 @@ const (
 var (
 	state  string
 	server = &http.Server{Addr: address, Handler: nil}
-	// Auth is the login authorization strutc that will be used to create clients.
+	// Auth is the login authorization struct that will be used to create clients.
 	Auth spotify.Authenticator
+	// TokenFile is a string of the filepath to tokens.json
+	TokenFile string
 )
 
 // Initialize the environment and assign value to auth variable
 func init() {
 	os.Setenv("SPOTIFY_ID", "d651facb9c8c47188af996f8e0816764")
 	Auth = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadPrivate, spotify.ScopeUserModifyPlaybackState, spotify.ScopeUserReadPlaybackState, spotify.ScopeUserReadCurrentlyPlaying)
+	executablePath, _ := os.Executable()
+	executableFolder, _ := filepath.Split(executablePath)
+	TokenFile = filepath.Join(executableFolder, "tokens.json")
+	fmt.Println("This is the folder Path", executableFolder)
+
 }
 
 // Handle signin
@@ -58,7 +66,10 @@ func handleRedirect(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Login Completed! \nYou can now go back to your command line!")
 	// Write tokens to JSON file
 	json, _ := json.Marshal(tok)
-	ioutil.WriteFile("tokens.json", json, 0600)
+	err = ioutil.WriteFile(TokenFile, json, 0600)
+	if err != nil {
+		log.Fatal(err)
+	}
 	go func() {
 		if err := server.Shutdown(context.Background()); err != nil {
 			log.Fatal(err)
@@ -72,9 +83,10 @@ func Login() (bool, spotify.Client) {
 	var tokens oauth2.Token
 	var client spotify.Client
 	// Check if user was logged in past
-	if _, err := os.Stat("tokens.json"); err == nil {
+	if _, err := os.Stat(TokenFile); err == nil {
 		err := RefreshToken()
 		if err != nil {
+			// Just print the error and continue to signin
 			fmt.Println(err)
 		} else {
 			err = validateTokens(&tokens)
@@ -101,7 +113,7 @@ func Login() (bool, spotify.Client) {
 }
 
 func validateTokens(tokens *oauth2.Token) error {
-	jsonData, err := ioutil.ReadFile("tokens.json")
+	jsonData, err := ioutil.ReadFile(TokenFile)
 	if err != nil {
 		return err
 	}

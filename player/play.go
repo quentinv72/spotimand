@@ -1,6 +1,7 @@
 package player
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -13,112 +14,100 @@ var flagsPlay = flag.NewFlagSet("Play", flag.ContinueOnError)
 var flagsDevices = flag.NewFlagSet("Devices", flag.ContinueOnError)
 var deviceID string
 var deviceList bool
+var playStart bool
 
 func init() {
+	// initialize `play` flags
 	flagsPlay.StringVar(&deviceID, "device", "", "ID of device to play music on.")
-	flagsDevices.BoolVar(&deviceList, "list", false, "List all availble devices.")
+	flagsPlay.BoolVar(&playStart, "start", false, "Find and start playing music on an available device")
 }
 
 // Play plays the song that is currently playing
 // and can also switch to play on another available device
-func Play(client *spotify.Client, command []string) {
+func Play(client *spotify.Client, command []string) error {
+	defer resetFlags()
 	err := flagsPlay.Parse(command)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
+	}
+	if playStart {
+		devices, err := client.PlayerDevices()
+		if err != nil {
+			return err
+		}
+		if len(devices) == 0 {
+			return errors.New("there are no available devices")
+		}
+		return client.PlayOpt(&spotify.PlayOptions{DeviceID: &devices[0].ID})
 	}
 	// Switch and play on different device
 	if deviceID != "" {
-		err = client.TransferPlayback(spotify.ID(deviceID), true)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			// reset the default flag value (might be a cleaner way to do this)
-			deviceID = ""
-			return
-		}
-		// reset the default flag value (might be a cleaner way to do this)
-		deviceID = ""
-		return
+		return client.TransferPlayback(spotify.ID(deviceID), true)
 	}
-	err = client.Play()
+	return client.Play()
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
 }
 
 // Pause pauses the song that is currently playing
-func Pause(client *spotify.Client) {
-	err := client.Pause()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
+func Pause(client *spotify.Client) error {
+	return client.Pause()
+
 }
 
 // Next jumps to the next song in the queue
-func Next(client *spotify.Client) {
-	err := client.Next()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	fmt.Fprintln(os.Stdout, "Playing next song")
+func Next(client *spotify.Client) error {
+	return client.Next()
+
 }
 
 // Previous plays the previous song in the "queue"
-func Previous(client *spotify.Client) {
-	err := client.Previous()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	fmt.Fprintln(os.Stdout, "Playing previous song")
+func Previous(client *spotify.Client) error {
+	return client.Previous()
+
 }
 
 // SongCurrentlyPlaying prints the name of the current song
-func SongCurrentlyPlaying(client *spotify.Client) {
+func SongCurrentlyPlaying(client *spotify.Client) error {
 	song, err := client.PlayerCurrentlyPlaying()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		fmt.Fprintln(os.Stderr, "Couldn't fetch song name")
-		return
+		return err
 	}
 	// Check if the song struct is populated
 	if song.Timestamp == 0 {
-		fmt.Fprintln(os.Stderr, "Seems like there aren't any active devices at the moment.")
-		return
+		return errors.New("seems like there aren't any active devices at the moment")
 	}
 	trackName := song.Item.SimpleTrack.Name
 	artist := song.Item.SimpleTrack.Artists[0].Name
 	fmt.Fprintf(os.Stdout, "Currently playing: %s - %s\n", trackName, artist)
-	fmt.Fprintln(os.Stdout, "hello")
+	return nil
+}
+
+func init() {
+	// initialize `device` flags
+	flagsDevices.BoolVar(&deviceList, "list", false, "List all availble devices.")
 
 }
 
 // Devices otputs teh current device the music is playing on
 // or the list of all available devices
-func Devices(client *spotify.Client, command []string) {
+func Devices(client *spotify.Client, command []string) error {
 	err := flagsDevices.Parse(command)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	// List all available devices
 	if deviceList {
+		defer resetFlags()
 		devices, err := client.PlayerDevices()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			// reset the default flag value (might be a cleaner way to do this)
-			deviceList = false
-			return
+			return err
 		}
 		if len(devices) == 0 {
-			fmt.Fprintln(os.Stderr, "There are no available devices...")
 			// reset the default flag value (might be a cleaner way to do this)
-			deviceList = false
-			return
+			return errors.New("there are no available devices")
 		}
 		fmt.Fprintln(os.Stdout, "The available devices are:")
 
@@ -126,18 +115,21 @@ func Devices(client *spotify.Client, command []string) {
 			fmt.Fprintf(os.Stdout, "Name: %s --- ID: %s\n", device.Name, device.ID)
 		}
 		// reset the default flag value (might be a cleaner way to do this)
-		deviceList = false
-		return
+		return nil
 	}
 	info, err := client.PlayerState()
 	if err != nil {
-		fmt.Fprintln(os.Stdout, err)
-		return
+		return err
 	}
 	if info.Device.ID == "" {
-		fmt.Fprintln(os.Stderr, "Seems like you aren't playing music on any device...")
-		return
+		return errors.New("seems like you aren't playing music on any device")
 	}
 	fmt.Fprintf(os.Stdout, "Name: %s --- ID: %s\n", info.Device.Name, info.Device.ID)
+	return nil
+}
 
+func resetFlags() {
+	deviceID = ""
+	deviceList = false
+	playStart = false
 }

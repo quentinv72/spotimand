@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -50,12 +51,15 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
-		execInput(input) // Maybe handle error here??
+		err = execInput(input)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 }
 
-func execInput(input string) {
-	// Remove the newline character.
+func execInput(input string) error {
+	// Remove the newline character and carriage character.
 	input = strings.TrimSuffix(input, "\r\n")
 
 	// Split the input separate the command and the arguments.
@@ -63,22 +67,24 @@ func execInput(input string) {
 
 	switch args[0] {
 	case "play":
-		player.Play(&client, args[1:])
+		return player.Play(&client, args[1:])
 	case "pause":
-		player.Pause(&client)
+		return player.Pause(&client)
 	case "next":
-		player.Next(&client)
+		return player.Next(&client)
 	case "previous":
-		player.Previous(&client)
+		return player.Previous(&client)
 	case "current":
-		player.SongCurrentlyPlaying(&client)
+		return player.SongCurrentlyPlaying(&client)
 	case "device":
-		player.Devices(&client, args[1:])
+		return player.Devices(&client, args[1:])
 	case "exit":
-		os.Exit(0)
+		defer os.Exit(0)
+		return nil
 	case "":
 		// Do nothing
+		return nil
 	default:
-		fmt.Fprintln(os.Stderr, "Not a command")
+		return errors.New("not a command")
 	}
 }

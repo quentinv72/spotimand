@@ -9,7 +9,6 @@ import (
 	"github.com/zmb3/spotify"
 )
 
-// TODO if a device is available then default to playing on it
 var flagsPlay = flag.NewFlagSet("Play", flag.ContinueOnError)
 var flagsDevices = flag.NewFlagSet("Devices", flag.ContinueOnError)
 var deviceID string
@@ -88,7 +87,7 @@ func init() {
 
 }
 
-// Devices otputs teh current device the music is playing on
+// Devices outputs the current device the music is playing on
 // or the list of all available devices
 func Devices(client *spotify.Client, command []string) error {
 	err := flagsDevices.Parse(command)
@@ -102,11 +101,9 @@ func Devices(client *spotify.Client, command []string) error {
 		devices, err := client.PlayerDevices()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			// reset the default flag value (might be a cleaner way to do this)
 			return err
 		}
 		if len(devices) == 0 {
-			// reset the default flag value (might be a cleaner way to do this)
 			return errors.New("there are no available devices")
 		}
 		fmt.Fprintln(os.Stdout, "The available devices are:")
@@ -114,9 +111,9 @@ func Devices(client *spotify.Client, command []string) error {
 		for _, device := range devices {
 			fmt.Fprintf(os.Stdout, "Name: %s --- ID: %s\n", device.Name, device.ID)
 		}
-		// reset the default flag value (might be a cleaner way to do this)
 		return nil
 	}
+	// Shoz current device
 	info, err := client.PlayerState()
 	if err != nil {
 		return err
@@ -128,6 +125,7 @@ func Devices(client *spotify.Client, command []string) error {
 	return nil
 }
 
+// resetFlags resets the flags to their default values
 func resetFlags() {
 	deviceID = ""
 	deviceList = false

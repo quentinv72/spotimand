@@ -113,7 +113,7 @@ func Devices(client *spotify.Client, command []string) error {
 		}
 		return nil
 	}
-	// Shoz current device
+	// Show current device
 	info, err := client.PlayerState()
 	if err != nil {
 		return err

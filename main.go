@@ -60,7 +60,8 @@ func main() {
 
 func execInput(input string) error {
 	// Remove the newline character and carriage character.
-	input = strings.TrimSuffix(input, "\r\n")
+	input = strings.TrimSuffix(input, "\n")
+	input = strings.TrimSuffix(input, "\r")
 
 	// Split the input separate the command and the arguments.
 	args := strings.Split(input, " ")

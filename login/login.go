@@ -36,8 +36,6 @@ func init() {
 	executablePath, _ := os.Executable()
 	executableFolder, _ := filepath.Split(executablePath)
 	TokenFile = filepath.Join(executableFolder, "tokens.json")
-	fmt.Println("This is the folder Path", executableFolder)
-
 }
 
 // Handle signin

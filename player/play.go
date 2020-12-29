@@ -9,8 +9,8 @@ import (
 	"github.com/zmb3/spotify"
 )
 
-var flagsPlay = flag.NewFlagSet("Play", flag.ContinueOnError)
-var flagsDevices = flag.NewFlagSet("Devices", flag.ContinueOnError)
+var flagsPlay = flag.NewFlagSet("play", flag.ContinueOnError)
+var flagsDevices = flag.NewFlagSet("device", flag.ContinueOnError)
 var deviceID string
 var deviceList bool
 var playStart bool
@@ -26,7 +26,9 @@ func init() {
 func Play(client *spotify.Client, command []string) error {
 	defer resetFlags()
 	err := flagsPlay.Parse(command)
-	if err != nil {
+	if err == flag.ErrHelp {
+		return nil
+	} else if err != nil {
 		return err
 	}
 	if playStart {
@@ -91,8 +93,9 @@ func init() {
 // or the list of all available devices
 func Devices(client *spotify.Client, command []string) error {
 	err := flagsDevices.Parse(command)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	if err == flag.ErrHelp {
+		return nil
+	} else if err != nil {
 		return err
 	}
 	// List all available devices
@@ -100,7 +103,6 @@ func Devices(client *spotify.Client, command []string) error {
 		defer resetFlags()
 		devices, err := client.PlayerDevices()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
 			return err
 		}
 		if len(devices) == 0 {

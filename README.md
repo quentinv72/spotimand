@@ -26,6 +26,8 @@ previous "Switch back previous song"
 play --start "Start playing musi on an active device (if there is one)"
 play --device <device_id> "Play music on device <device_id>"
 device --list "List all available devices"
+device -h "Help for device command"
+play -h "Help for play command"
 ```
 
 ## Next Steps and improvements

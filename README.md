@@ -14,8 +14,7 @@ At the moment, you can play a song, pause a song, switch to the previous or next
 go install
 spotimand
 ```
-Don't forget to add your GOPATH binary to your PATH! 
-
+Don't forget to add your GOPATH binary to your PATH (you can add these lines in your `.zprofile` or `.profile` or etc)! 
 ```
 export PATH=$PATH:$(go env GOPATH)/bin
 ```
